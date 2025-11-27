@@ -1005,54 +1005,69 @@ export default function Index() {
 
   // --- BAŞLATMA ---
   const startGame = (selectedLang: string) => {
-    // Müzik kontrolü: Oyun başlayınca müzik durmalı
-    if (sounds.bg_music) {
+    try {
+      console.log("Starting game with lang:", selectedLang);
+      // Müzik kontrolü: Oyun başlayınca müzik durmalı
+      if (sounds.bg_music) {
+        try {
+          sounds.bg_music.pauseAsync();
+        } catch (e) { }
+      }
+
+      setLang(selectedLang);
+      setScore(0);
+      setFoundWords(new Set());
+      setFloatingScores([]);
+      setHasPlayed(false);
+      setTimeLeft(1200); // 20 dakika
+      setGameOver(false);
+      setIsPaused(false);
+      setShowPauseMenu(false);
+
+      // 1. Tarihe göre kelime seçimi
+      const today = getTodayDate();
+      // @ts-ignore
+      const langData = GAME_DATA[selectedLang];
+
+      if (!langData) {
+        console.error("Language data not found for:", selectedLang);
+        alert("Dil verisi bulunamadı: " + selectedLang);
+        return;
+      }
+
+      // Bugünün verisini bul, yoksa en sonuncuyu al (Fallback)
+      let dailyData = langData.find((d: any) => d.date === today);
+      if (!dailyData) {
+        dailyData = langData[langData.length - 1];
+      }
+
+      setGameData(dailyData);
+
+      // 2. Seed Random (Tarih + Dil) -> Herkes için aynı grid
+      const seed = `${dailyData.date}-${selectedLang}`;
       try {
-        sounds.bg_music.pauseAsync();
-      } catch (e) { }
+        seedrandom(seed, { global: true });
+      } catch (e) {
+        console.error("Seedrandom error:", e);
+        // Fallback if seedrandom fails (though it shouldn't)
+      }
+
+      // 3. Grid Oluşturma (Deterministik)
+      const { walls: newWalls, blocks: newBlocks } = generateGrid(dailyData.source);
+      setWalls(newWalls);
+      wallsRef.current = newWalls; // Sync Ref
+      setBlocks(newBlocks);
+
+      // --- RL RECORDING (INITIAL) ---
+      gameHistoryRef.current = []; // Reset history ref
+      // Capture initial state (need to wait for state update or pass directly)
+      // Passing directly is safer here
+      captureGridState('START', newWalls, newBlocks);
+      // ------------------------------
+    } catch (error: any) {
+      console.error("Start Game Error:", error);
+      alert("Oyun başlatılamadı: " + error.message);
     }
-
-    setLang(selectedLang);
-    setScore(0);
-    setFoundWords(new Set());
-    setFloatingScores([]);
-    setHasPlayed(false);
-    setTimeLeft(1200); // 20 dakika
-    setGameOver(false);
-    setIsPaused(false);
-    setShowPauseMenu(false);
-
-    // 1. Tarihe göre kelime seçimi
-    const today = getTodayDate();
-    // @ts-ignore
-    const langData = GAME_DATA[selectedLang];
-
-    if (!langData) return;
-
-    // Bugünün verisini bul, yoksa en sonuncuyu al (Fallback)
-    let dailyData = langData.find((d: any) => d.date === today);
-    if (!dailyData) {
-      dailyData = langData[langData.length - 1];
-    }
-
-    setGameData(dailyData);
-
-    // 2. Seed Random (Tarih + Dil) -> Herkes için aynı grid
-    const seed = `${dailyData.date}-${selectedLang}`;
-    seedrandom(seed, { global: true });
-
-    // 3. Grid Oluşturma (Deterministik)
-    const { walls: newWalls, blocks: newBlocks } = generateGrid(dailyData.source);
-    setWalls(newWalls);
-    wallsRef.current = newWalls; // Sync Ref
-    setBlocks(newBlocks);
-
-    // --- RL RECORDING (INITIAL) ---
-    gameHistoryRef.current = []; // Reset history ref
-    // Capture initial state (need to wait for state update or pass directly)
-    // Passing directly is safer here
-    captureGridState('START', newWalls, newBlocks);
-    // ------------------------------
   };
 
   const generateGrid = (sourceWord: string) => {
