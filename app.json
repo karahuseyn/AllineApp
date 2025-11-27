@@ -1,0 +1,89 @@
+{
+  "expo": {
+    "name": "AllineApp",
+    "slug": "AllineApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "allineapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow AllineApp to access your camera to record gameplay reactions.",
+        "NSMicrophoneUsageDescription": "Allow AllineApp to access your microphone to record gameplay audio.",
+        "NSPhotoLibraryAddUsageDescription": "Allow AllineApp to save gameplay videos to your photos.",
+        "NSPhotoLibraryUsageDescription": "Allow AllineApp to save gameplay videos to your photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO"
+      ],
+      "package": "com.anonymous.AllineApp"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AllineApp to access your camera to record gameplay reactions.",
+          "microphonePermission": "Allow AllineApp to access your microphone to record gameplay audio."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow AllineApp to save gameplay videos to your photos.",
+          "savePhotosPermission": "Allow AllineApp to save gameplay videos to your photos.",
+          "isAccessMediaLocationEnabled": true,
+          "granularPermissions": [
+            "audio",
+            "photo",
+            "video"
+          ]
+        }
+      ],
+      "@closetothe/expo-record-screen-config-plugin",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "./plugins/withAndroidRemoveTask",
+      "expo-audio"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
