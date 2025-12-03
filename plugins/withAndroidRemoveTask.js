@@ -2,7 +2,7 @@ const { withDangerousMod, withMainApplication } = require('@expo/config-plugins'
 const fs = require('fs');
 const path = require('path');
 
-const EXIT_MODULE_KT = `package com.anonymous.AllineApp
+const EXIT_MODULE_KT = `package com.hafoo.alline
 
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -20,7 +20,7 @@ class ExitModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaMo
 }
 `;
 
-const EXIT_PACKAGE_KT = `package com.anonymous.AllineApp
+const EXIT_PACKAGE_KT = `package com.hafoo.alline
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
@@ -44,7 +44,7 @@ const withAndroidRemoveTask = (config) => {
         'android',
         async (config) => {
             const projectRoot = config.modRequest.projectRoot;
-            const packagePath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java', 'com', 'anonymous', 'AllineApp');
+            const packagePath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java', 'com', 'hafoo', 'alline');
 
             // Ensure directory exists
             if (!fs.existsSync(packagePath)) {

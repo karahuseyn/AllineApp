@@ -10,34 +10,26 @@ import {
   BackHandler,
   Dimensions,
   Easing,
-  Modal,
   NativeModules,
   Platform,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  useWindowDimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // @ts-ignore
 import seedrandom from 'seedrandom';
 import { GAME_DATA } from '../game_data';
 
-// ... (existing imports)
+import Logo from '../components/Logo';
+import SplashScreen from '../components/SplashScreen';
+import { TEXTS } from '../constants/Texts';
 
 // --- DİL VE METİN AYARLARI ---
-const TEXTS = {
-  TR: { score: 'PUAN', gameOver: 'OYUN BİTTİ', replay: 'TEKRAR OYNA', menu: 'ANA MENÜ', exit: 'ÇIKIŞ', paused: 'OYUN DURAKLATILDI', resume: 'DEVAM ET', aiDisclaimer: 'Bu veri yapay zeka modellerinin geliştirilmesinde kullanılacaktır. Anlayışınız için teşekkürler!', aiInstruction: 'Data\'yı indirdikten sonra ana sayfaya gidip Replay Viewer\'ı açabilir ve data\'yı yükleyerek oynadığınız oyunu tekrar izleyebilirsiniz.' },
-  EN: { score: 'PTS', gameOver: 'GAME OVER', replay: 'PLAY AGAIN', menu: 'MAIN MENU', exit: 'EXIT', paused: 'GAME PAUSED', resume: 'RESUME', aiDisclaimer: 'This data will be used for the development of AI models. Thank you for your understanding!', aiInstruction: 'After downloading the data, you can go to the main page, open the Replay Viewer, upload the data, and watch your game replay.' },
-  DE: { score: 'PKT', gameOver: 'SPIEL VORBEI', replay: 'NOCHMAL', menu: 'HAUPTMENÜ', exit: 'AUSGANG', paused: 'SPIEL PAUSIERT', resume: 'FORTSETZEN', aiDisclaimer: 'Diese Daten werden für die Entwicklung von KI-Modellen verwendet. Vielen Dank für Ihr Verständnis!', aiInstruction: 'Nach dem Herunterladen der Daten können Sie zur Hauptseite gehen, den Replay Viewer öffnen, die Daten hochladen und Ihr Spiel wiederholen.' },
-  ES: { score: 'PTS', gameOver: 'JUEGO TERMINADO', replay: 'JUGAR DE NUEVO', menu: 'MENÚ PRINCIPAL', exit: 'SALIDA', paused: 'JUEGO PAUSADO', resume: 'REANUDAR', aiDisclaimer: 'Estos datos se utilizarán para el desarrollo de modelos de IA. ¡Gracias por su comprensión!', aiInstruction: 'Después de descargar los datos, puede ir a la página principal, abrir el Replay Viewer, cargar los datos y ver la repetición de su juego.' },
-  FR: { score: 'PTS', gameOver: 'JEU TERMINÉ', replay: 'REJOUER', menu: 'MENU PRINCIPAL', exit: 'QUITTER', paused: 'JEU EN PAUSE', resume: 'REPRENDRE', aiDisclaimer: 'Ces données seront utilisées pour le développement de modèles d\'IA. Merci de votre compréhension !', aiInstruction: 'Après avoir téléchargé les données, vous pouvez aller sur la page principale, ouvrir le Replay Viewer, télécharger les données et regarder la rediffusion de votre jeu.' }
-};
 
-// ... (existing constants)
-
-// ... inside component ...
 
 
 
@@ -85,7 +77,13 @@ export const COLORS = {
 
 
 
-const getTodayDate = () => new Date().toISOString().split('T')[0];
+const getTodayDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // --- YÖN SABİTLERİ ---
 const DIRECTIONS = {
@@ -296,6 +294,9 @@ interface TickerProps {
 }
 
 const Ticker = React.memo(({ targets, foundWords, width }: TickerProps) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const isMobileWeb = Platform.OS === 'web' && windowWidth < 768;
+
   // Filter and Sort Targets
   const visibleTargets = useMemo(() => {
     // 1. Filter: Hide 7-letter words if not found
@@ -309,8 +310,8 @@ const Ticker = React.memo(({ targets, foundWords, width }: TickerProps) => {
     });
   }, [targets, foundWords]);
 
-  // WEB: Sidebar Mode
-  if (Platform.OS === 'web') {
+  // WEB: Sidebar Mode (Only if NOT mobile width)
+  if (Platform.OS === 'web' && !isMobileWeb) {
     return (
       <LinearGradient
         colors={[COLORS.grad1, COLORS.grad2, COLORS.grad3]}
@@ -318,7 +319,7 @@ const Ticker = React.memo(({ targets, foundWords, width }: TickerProps) => {
         end={{ x: 1, y: 1 }}
         style={{ width: 200, height: '100%', borderRadius: 12, padding: 2, marginLeft: 20 }}
       >
-        <View style={{ flex: 1, backgroundColor: COLORS.bg, borderRadius: 10, padding: 10 }}>
+        <View style={{ flex: 1, backgroundColor: COLORS.bg, borderRadius: 10, padding: 10, justifyContent: 'space-evenly' }}>
           {visibleTargets.map((word, index) => {
             const isFound = foundWords.has(word);
             const isEpic = word.length === 7;
@@ -327,7 +328,7 @@ const Ticker = React.memo(({ targets, foundWords, width }: TickerProps) => {
             const textColor = isFound ? (isEpic ? COLORS.accent : COLORS.success) : '#aaa';
 
             return (
-              <View key={index} style={{ marginBottom: 8, padding: 6, backgroundColor: bgColor, borderRadius: 6, borderWidth: 1, borderColor: borderColor }}>
+              <View key={index} style={{ padding: 6, backgroundColor: bgColor, borderRadius: 6, borderWidth: 1, borderColor: borderColor }}>
                 <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 14, textAlign: 'center', fontFamily: 'monospace' }}>
                   {isFound ? word : "_ ".repeat(word.length).trim()}
                 </Text>
@@ -383,33 +384,33 @@ const Ticker = React.memo(({ targets, foundWords, width }: TickerProps) => {
 });
 
 // --- KONTROL BUTONU ---
-// --- KONTROL BUTONU ---
 interface ControlButtonProps {
   icon: string;
   onPressIn: () => void;
   onPressOut: () => void;
   style?: any;
+  textStyle?: any;
 }
 
-export const ControlButton = React.memo(({ icon, onPressIn, onPressOut, style }: ControlButtonProps) => {
+export const ControlButton = React.memo(({ icon, onPressIn, onPressOut, style, textStyle }: ControlButtonProps) => {
   return (
     <TouchableOpacity
-      style={[styles.ctrlBtn, style]}
+      style={[styles.ctrlBtn, style, Platform.OS === 'web' && { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none' }]}
       activeOpacity={0.7}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       delayPressIn={0}
+      {...(Platform.OS === 'web' ? { onContextMenu: (e: any) => e.preventDefault() } : {})}
     >
       <LinearGradient
         colors={['rgba(255,255,255,0.1)', 'rgba(0,0,0,0.3)']}
         style={styles.ctrlBtnGradient}
       >
-        <Text style={styles.ctrlBtnText}>{icon}</Text>
+        <Text style={[styles.ctrlBtnText, textStyle]}>{icon}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );
 });
-
 // --- FLOATING SCORE ---
 interface FloatingScoreProps {
   amount: number;
@@ -513,9 +514,27 @@ export const ConfettiExplosion = React.memo(() => {
   );
 });
 
+const MobileLandscapeWarning = () => (
+  <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+    <Text style={{ color: '#fff', fontSize: 40, marginBottom: 20 }}>📱↔️</Text>
+    <Text style={{ color: '#fff', fontSize: 18, textAlign: 'center', fontWeight: 'bold' }}>
+      Lütfen telefonunuzu dikey konuma getirin.
+    </Text>
+    <Text style={{ color: '#666', fontSize: 14, textAlign: 'center', marginTop: 10 }}>
+      Oyun deneyimi için dikey ekran gereklidir.
+    </Text>
+  </View>
+);
+
 export default function Index() {
   const router = useRouter();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [lang, setLang] = useState<string | null>(null);
+  const [isSplashVisible, setSplashVisible] = useState(true);
+
+  const isLandscape = windowWidth > windowHeight;
+  const isMobileWeb = Platform.OS === 'web' && windowWidth < 768;
+  const showMobileWarning = isLandscape && (Platform.OS !== 'web' || isMobileWeb);
 
   // State
   interface Wall { x: number; y: number; type: number; }
@@ -536,9 +555,9 @@ export default function Index() {
   const captureGridState = (move: string, currentWalls: Wall[], currentBlocks: Block[], label?: string) => {
     const grid: (string | number)[][] = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(0));
 
-    // 1. Walls (1)
+    // 1. Walls (10 + type)
     currentWalls.forEach(w => {
-      if (w.y < GRID_ROWS && w.x < GRID_COLS) grid[w.y][w.x] = 1;
+      if (w.y < GRID_ROWS && w.x < GRID_COLS) grid[w.y][w.x] = 10 + w.type;
     });
 
     // 2. Blocks (Char)
@@ -599,11 +618,13 @@ export default function Index() {
   const [timeLeft, setTimeLeft] = useState(20 * 60);
   const [isPaused, setIsPaused] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [isGameWon, setIsGameWon] = useState(false);
   const [cellSize, setCellSize] = useState(GRID_CELL_SIZE);
   const [floatingScores, setFloatingScores] = useState<{ id: number; amount: number }[]>([]);
   const [showPauseMenu, setShowPauseMenu] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [hasPlayed, setHasPlayed] = useState(false);
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
 
   // SESLER
   const [sounds, setSounds] = useState<any>({});
@@ -612,8 +633,6 @@ export default function Index() {
   // NOT: Kullanıcı bu dosyaları assets/sounds klasörüne eklemeli!
   const soundMap = useMemo(() => ({
     menu: require('../assets/sounds/menu.mp3'),
-    slide: require('../assets/sounds/slide.mp3'),
-    hit: require('../assets/sounds/hit.mp3'),
     score: require('../assets/sounds/score.mp3'),
     countdown: require('../assets/sounds/countdown.mp3'),
     bg_music: require('../assets/sounds/bg_music.mp3'),
@@ -628,12 +647,6 @@ export default function Index() {
         // Efektler
         const { sound: menuSound } = await Audio.Sound.createAsync(soundMap.menu);
         loadedSounds.menu = menuSound;
-
-        const { sound: slideSound } = await Audio.Sound.createAsync(soundMap.slide);
-        loadedSounds.slide = slideSound;
-
-        const { sound: hitSound } = await Audio.Sound.createAsync(soundMap.hit);
-        loadedSounds.hit = hitSound;
 
         const { sound: scoreSound } = await Audio.Sound.createAsync(soundMap.score);
         loadedSounds.score = scoreSound;
@@ -667,16 +680,8 @@ export default function Index() {
   const playSound = useCallback(async (name: string) => {
     if (sounds[name]) {
       try {
-        if (name === 'slide') {
-          // Slide sesi: 75ms - 90ms arası (15ms süre)
-          await sounds[name].playFromPositionAsync(75);
-          setTimeout(() => {
-            sounds[name].stopAsync();
-          }, 15);
-        } else {
-          await sounds[name].setVolumeAsync(1.0);
-          await sounds[name].replayAsync();
-        }
+        await sounds[name].setVolumeAsync(1.0);
+        await sounds[name].replayAsync();
       } catch (e) { }
     }
   }, [sounds]);
@@ -697,7 +702,7 @@ export default function Index() {
 
       // Müzik çalmalı mı? (Intro, Pause Menüsü veya Oyun Bittiğinde)
       // isPaused (kısa süreli duraklamalar) dahil edilmedi, sadece menü.
-      const shouldPlay = !lang || showPauseMenu || gameOver;
+      const shouldPlay = (!lang || showPauseMenu || gameOver) && !isMusicMuted;
 
       try {
         const status = await music.getStatusAsync();
@@ -716,7 +721,7 @@ export default function Index() {
     };
 
     manageMusic();
-  }, [sounds.bg_music, lang, showPauseMenu, gameOver]);
+  }, [sounds.bg_music, lang, showPauseMenu, gameOver, isMusicMuted]);
 
   // Hareket Mantığı (Ref ile performans)
   const isProcessing = useRef(false);
@@ -795,7 +800,7 @@ export default function Index() {
         window.removeEventListener('keyup', handleKeyUp);
       };
     }
-  }, [gameOver, isPaused, showPauseMenu]);
+  }, [gameOver, isPaused, showPauseMenu, playSound]);
 
 
   // Check formation on blocks change
@@ -910,7 +915,6 @@ export default function Index() {
 
     if (foundInfo) handleFoundWord(foundInfo);
   };
-
   const handleFoundWord = ({ word, type, blocks: foundBlocks }: { word: string; type: string; blocks: Block[] }) => {
     // Puanlama ve Efekt
     let points = word.length * 10;
@@ -999,7 +1003,15 @@ export default function Index() {
       // Oyun Bitti mi?
       if (!gameData) return;
       const allTargetsFound = gameData.targets.every(t => foundWords.has(t) || t === word);
-      if (type !== 'BONUS' && allTargetsFound) setGameOver(true);
+      if (type !== 'BONUS' && allTargetsFound) {
+        const timeBonus = timeLeft * 10;
+        if (timeBonus > 0) {
+          setScore(prev => prev + timeBonus);
+          setFloatingScores(prev => [...prev, { id: Date.now(), amount: timeBonus }]);
+        }
+        setIsGameWon(true);
+        setGameOver(true);
+      }
     }, pauseDuration);
   };
 
@@ -1021,6 +1033,7 @@ export default function Index() {
       setHasPlayed(false);
       setTimeLeft(1200); // 20 dakika
       setGameOver(false);
+      setIsGameWon(false);
       setIsPaused(false);
       setShowPauseMenu(false);
 
@@ -1208,11 +1221,49 @@ export default function Index() {
 
   const t = lang ? TEXTS[lang as keyof typeof TEXTS] : TEXTS['EN'];
 
+
+
+  const renderInstruction = (text: string | undefined) => {
+    if (!text) return null;
+    const parts = text.split('Replay Viewer');
+    if (parts.length === 1) return <Text style={{ color: '#eee', fontSize: 13, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>{text}</Text>;
+
+    return (
+      <Text style={{ color: '#eee', fontSize: 13, textAlign: 'center', maxWidth: 300, lineHeight: 18 }}>
+        {parts[0]}
+        <Text
+          style={{ color: COLORS.neonCyan, fontWeight: 'bold', textDecorationLine: 'underline' }}
+          onPress={() => { router.push(`/replay?lang=${lang || 'EN'}`); }}
+        >
+          Replay Viewer
+        </Text>
+        {parts[1]}
+      </Text>
+    );
+  };
+
+  if (isSplashVisible) {
+    return <SplashScreen onFinish={() => setSplashVisible(false)} />;
+  }
+
+  if (showMobileWarning) {
+    return <MobileLandscapeWarning />;
+  }
+
   if (!lang) {
     return (
-      <View style={styles.introContainer}>
+      <SafeAreaView style={styles.introContainer}>
         <Stack.Screen options={{ headerShown: false }} />
-        <GradientText text="ALLINE" style={{ fontSize: 60, fontWeight: '900', letterSpacing: 8 }} width={300} height={100} />
+
+        {/* Music Toggle Button */}
+        <TouchableOpacity
+          style={{ position: 'absolute', top: 40, right: 20, padding: 10, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, zIndex: 50 }}
+          onPress={() => setIsMusicMuted(!isMusicMuted)}
+        >
+          <Text style={{ fontSize: 24 }}>{isMusicMuted ? '🔇' : '🔊'}</Text>
+        </TouchableOpacity>
+
+        <Logo width={400} height={133} />
         <View style={styles.langGrid}>
           {Object.keys(GAME_DATA).map(l => (
             <TouchableOpacity key={l} style={styles.langBtn} onPress={() => startGame(l)}>
@@ -1220,29 +1271,24 @@ export default function Index() {
             </TouchableOpacity>
           ))}
         </View>
-        {Platform.OS === 'web' && (
-          <TouchableOpacity
-            style={{ marginTop: 30 }}
-            onPress={() => router.push('/replay')}
-          >
-            <LinearGradient
-              colors={[COLORS.grad1, COLORS.grad2]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}
-            >
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 }}>REPLAY VIEWER</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-      </View>
+
+      </SafeAreaView>
     );
   }
 
+  const isShortScreen = Platform.OS === 'web' && windowHeight < 600;
+  const isDesktop = Platform.OS === 'web' && !isMobileWeb;
+
+  let btnSize = isMobileWeb ? 60 : 75;
+  if (isShortScreen) {
+    btnSize = Math.min(btnSize, windowHeight * 0.12);
+  }
+  const controlBtnSize = btnSize;
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, Platform.OS === 'web' && { height: '100%', overflow: 'hidden', userSelect: 'none', WebkitUserSelect: 'none' } as any]}>
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-
       {showConfetti && <ConfettiExplosion />}
 
       {/* HEADER */}
@@ -1253,7 +1299,7 @@ export default function Index() {
         ]}>
           <View style={{ flex: 1, alignItems: 'flex-start' }}>
             <View style={{ alignItems: 'center' }}>
-              <GradientText text="ALLINE" style={{ fontSize: 18, fontWeight: '900', letterSpacing: 1 }} width={80} height={24} align="center" />
+              <Logo width={80} height={30} />
               <TouchableOpacity onPress={handlePause} style={styles.pauseBtn}>
                 <Text style={styles.pauseBtnText}>II</Text>
               </TouchableOpacity>
@@ -1286,44 +1332,43 @@ export default function Index() {
         ))}
       </View>
 
-      {/* TICKER (Grid Genişliğinde) - MOBILE ONLY */}
-      {Platform.OS !== 'web' && (
-        <View style={styles.tickerWrapper}>
-          <LinearGradient
-            colors={[COLORS.grad1, COLORS.grad2, COLORS.grad3]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              borderRadius: 16,
-              padding: 2,
-              width: gridContainerSize > 0 ? gridContainerSize : Dimensions.get('window').width - 40,
-            }}
-          >
-            <View style={{
-              backgroundColor: COLORS.bg,
-              borderRadius: 14,
-              overflow: 'hidden',
-              height: 36,
-              justifyContent: 'center'
-            }}>
-              {/* MOBILE TICKER */}
-              {Platform.OS !== 'web' && gameData && (
-                <Ticker
-                  targets={gameData.targets}
-                  foundWords={foundWords}
-                  width={gridContainerSize > 0 ? gridContainerSize : Dimensions.get('window').width - 40}
-                />
-              )}
-            </View>
-          </LinearGradient>
-        </View>
-      )}
+      {/* TICKER (Grid Genişliğinde) - MOBILE ONLY OR WEB MOBILE */}
+      {
+        (Platform.OS !== 'web' || isMobileWeb) && (
+          <View style={styles.tickerWrapper}>
+            <LinearGradient
+              colors={[COLORS.grad1, COLORS.grad2, COLORS.grad3]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                borderRadius: 16,
+                padding: 2,
+                width: gridContainerSize > 0 ? gridContainerSize : Dimensions.get('window').width - 40,
+              }}
+            >
+              <View style={{
+                backgroundColor: COLORS.bg,
+                borderRadius: 14,
+                overflow: 'hidden',
+                height: 36,
+                justifyContent: 'center'
+              }}>
+                {/* MOBILE TICKER */}
+                {gameData && (
+                  <Ticker
+                    targets={gameData.targets}
+                    foundWords={foundWords}
+                    width={gridContainerSize > 0 ? gridContainerSize : Dimensions.get('window').width - 40}
+                  />
+                )}
+              </View>
+            </LinearGradient>
+          </View>
+        )
+      }
 
       {/* GRID ALANI + SIDEBAR (WEB) */}
       <View style={[styles.gridArea, Platform.OS === 'web' && { justifyContent: 'center', alignItems: 'center' }]} onLayout={onGridAreaLayout}>
-
-
-
         <View style={[styles.gridWrapper, { width: gridContainerSize + 6, height: gridContainerSize + 6 }]}>
           <LinearGradient
             colors={[COLORS.grad1, COLORS.grad2, COLORS.grad3]}
@@ -1353,7 +1398,6 @@ export default function Index() {
               })}
               {walls.map((w, i) => <Wall key={`w-${i}`} x={w.x} y={w.y} type={w.type} cellSize={cellSize} />)}
               {/* BLOKLAR */}
-              {/* BLOKLAR */}
               {cellSize > 0 && blocks.map(block => (
                 <Block
                   key={block.id}
@@ -1367,134 +1411,147 @@ export default function Index() {
               ))}
             </View>
           </LinearGradient>
-
-          {/* WEB SIDEBAR (Absolute Positioned relative to Grid Wrapper) */}
-          {Platform.OS === 'web' && gameData && (
-            <View style={{ position: 'absolute', left: '100%', top: 0, bottom: 0, marginLeft: 20 }}>
-              <Ticker
-                targets={gameData.targets}
-                foundWords={foundWords}
-                width={200}
-              />
-            </View>
-          )}
         </View>
       </View>
-
       {/* KONTROLLER - AYRIK VE ERGONOMİK */}
-      <View style={styles.controlsArea}>
-        <View style={styles.dpadContainer}>
-          {/* YUKARI */}
-          <View style={styles.dpadRow}>
-            <ControlButton icon="▲" onPressIn={() => startMoveLoop('UP')} onPressOut={stopMoveLoop} />
-          </View>
+      {
+        !isDesktop && (
+          <View style={[
+            styles.controlsArea,
+            isMobileWeb && { paddingBottom: 20, minHeight: 180 }
+          ]}>
+            <View style={[styles.dpadContainer, isMobileWeb && { gap: 5 }]}>
+              {/* YUKARI */}
+              <View style={styles.dpadRow}>
+                <ControlButton icon="▲" onPressIn={() => startMoveLoop('UP')} onPressOut={stopMoveLoop} style={isMobileWeb ? { width: controlBtnSize, height: controlBtnSize, borderRadius: 20 } : {}} textStyle={isMobileWeb ? { fontSize: 28 } : {}} />
+              </View>
 
-          {/* SOL - SAĞ (ORTA) */}
-          <View style={styles.dpadRowMiddle}>
-            <ControlButton icon="◀" onPressIn={() => startMoveLoop('LEFT')} onPressOut={stopMoveLoop} />
-            <ControlButton icon="▶" onPressIn={() => startMoveLoop('RIGHT')} onPressOut={stopMoveLoop} />
-          </View>
+              {/* SOL - SAĞ (ORTA) */}
+              <View style={[styles.dpadRowMiddle, isMobileWeb && { gap: 80, marginVertical: -2 }]}>
+                <ControlButton icon="◀" onPressIn={() => startMoveLoop('LEFT')} onPressOut={stopMoveLoop} style={isMobileWeb ? { width: controlBtnSize, height: controlBtnSize, borderRadius: 20 } : {}} textStyle={isMobileWeb ? { fontSize: 28 } : {}} />
+                <ControlButton icon="▶" onPressIn={() => startMoveLoop('RIGHT')} onPressOut={stopMoveLoop} style={isMobileWeb ? { width: controlBtnSize, height: controlBtnSize, borderRadius: 20 } : {}} textStyle={isMobileWeb ? { fontSize: 28 } : {}} />
+              </View>
 
-          {/* AŞAĞI */}
-          <View style={styles.dpadRow}>
-            <ControlButton icon="▼" onPressIn={() => startMoveLoop('DOWN')} onPressOut={stopMoveLoop} />
-          </View>
-        </View>
-      </View>
-
-      <Modal visible={gameOver || showPauseMenu} transparent animationType="fade">
-        <View style={styles.overlay}>
-          {showPauseMenu ? (
-            <View style={{ marginBottom: 40 }}>
-              <GradientText text="ALLINE" style={{ fontSize: 50, fontWeight: '900', letterSpacing: 6 }} width={250} height={80} align="center" />
+              {/* AŞAĞI */}
+              <View style={styles.dpadRow}>
+                <ControlButton icon="▼" onPressIn={() => startMoveLoop('DOWN')} onPressOut={stopMoveLoop} style={isMobileWeb ? { width: controlBtnSize, height: controlBtnSize, borderRadius: 20 } : {}} textStyle={isMobileWeb ? { fontSize: 28 } : {}} />
+              </View>
             </View>
-          ) : (
-            <Text style={styles.overlayTitle}>{t?.gameOver}</Text>
-          )}
+          </View>
+        )
+      }
 
-          {!showPauseMenu && <Text style={styles.overlayScore}>{score} {t?.score}</Text>}
+      {/* DESKTOP SIDEBAR (Absolute Right) */}
+      {
+        isDesktop && gameData && (
+          <View style={{ position: 'absolute', right: 20, top: 20, bottom: 20, width: 200, justifyContent: 'center', zIndex: 40 }}>
+            <Ticker
+              targets={gameData.targets}
+              foundWords={foundWords}
+              width={200}
+            />
+          </View>
+        )
+      }
+
+      {/* PAUSE MENU MODAL */}
+      {/* PAUSE MENU OVERLAY */}
+      {showPauseMenu && (
+        <View style={[styles.overlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }]}>
+          <View style={{ marginBottom: 40 }}>
+            <Logo width={250} height={80} />
+          </View>
 
           <View style={styles.menuContainer}>
-            {showPauseMenu ? (
-              <TouchableOpacity
-                style={[
-                  styles.menuBtnSmall,
-                  Platform.OS === 'web' && { width: 140, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(0,0,0,0.5)' }
-                ]}
-                onPress={() => { playSound('menu'); handleResume(); }}
-              >
-                <Text style={[styles.menuBtnTextSmall, Platform.OS === 'web' && { fontSize: 12 }]}>{t?.resume}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.menuBtn,
-                  Platform.OS === 'web' && { width: 160, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: COLORS.neonBlue, backgroundColor: 'rgba(0,0,0,0.6)' }
-                ]}
-                onPress={() => { playSound('menu'); handleReplay(); }}
-              >
-                <Text style={[styles.menuBtnText, Platform.OS === 'web' && { fontSize: 14 }]}>{t?.replay}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={[
+                styles.menuBtnSmall,
+                Platform.OS === 'web' && { width: 140, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(0,0,0,0.5)' }
+              ]}
+              onPress={() => { playSound('menu'); handleResume(); }}
+            >
+              <Text style={[styles.menuBtnTextSmall, Platform.OS === 'web' && { fontSize: 12 }]}>{t?.resume}</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[
-                showPauseMenu ? styles.menuBtnSmall : styles.menuBtn,
+                styles.menuBtnSmall,
                 Platform.OS === 'web' && { width: 140, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)', marginTop: 5 }
               ]}
               onPress={() => { playSound('menu'); handleMainMenu(); }}
             >
-              <Text style={[showPauseMenu ? styles.menuBtnTextSmall : styles.menuBtnText, Platform.OS === 'web' && { fontSize: 12 }]}>{t?.menu}</Text>
+              <Text style={[styles.menuBtnTextSmall, Platform.OS === 'web' && { fontSize: 12 }]}>{t?.menu}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'ios' && Platform.OS !== 'web' && (
-              <>
-                <TouchableOpacity style={[showPauseMenu ? styles.menuBtnSmall : styles.menuBtn, styles.menuBtnExit]} onPress={() => { playSound('menu'); handleExit(); }}>
-                  <Text style={[showPauseMenu ? styles.menuBtnTextSmall : styles.menuBtnText, styles.menuBtnTextExit]}>{t?.exit}</Text>
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity style={[styles.menuBtnSmall, styles.menuBtnExit]} onPress={() => { playSound('menu'); handleExit(); }}>
+                <Text style={[styles.menuBtnTextSmall, styles.menuBtnTextExit]}>{t?.exit}</Text>
+              </TouchableOpacity>
             )}
 
             <View style={{ flexDirection: 'row', marginTop: 20, gap: 10 }}>
-              <ControlButton
-                icon="↻"
-                onPressIn={() => startGame(lang!)}
-                onPressOut={() => { }}
-                style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}}
-              />
-              <ControlButton
-                icon="⬇️"
-                onPressIn={hasPlayed ? downloadGameHistory : () => { }}
-                onPressOut={() => { }}
-                style={[
-                  Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10, marginLeft: 0 } : { marginLeft: 10 },
-                  !hasPlayed && { opacity: 0.3 }
-                ]}
-              />
-              <ControlButton
-                icon="⌂"
-                onPressIn={() => { setLang(null); setShowPauseMenu(false); }}
-                onPressOut={() => { }}
-                style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}}
-              />
+              <ControlButton icon="↻" onPressIn={() => startGame(lang!)} onPressOut={() => { }} style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}} />
+              <ControlButton icon="⬇️" onPressIn={() => { }} onPressOut={() => { }} style={[Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10, marginLeft: 0 } : { marginLeft: 10 }, { opacity: 0.3 }]} />
+              <ControlButton icon="⌂" onPressIn={() => { setLang(null); setShowPauseMenu(false); }} onPressOut={() => { }} style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}} />
             </View>
 
-            {/* AI Disclaimer */}
+
+          </View>
+        </View>
+      )}
+
+      {/* GAME OVER MODAL */}
+      {/* GAME OVER OVERLAY */}
+      {gameOver && (
+        <View style={[styles.overlay, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }]}>
+          <Text style={[styles.overlayTitle, isGameWon && { color: COLORS.success }]}>
+            {isGameWon ? t?.gameWon : t?.gameOver}
+          </Text>
+          <Text style={styles.overlayScore}>{score} {t?.score}</Text>
+
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={[
+                styles.menuBtn,
+                Platform.OS === 'web' && { width: 160, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: COLORS.neonBlue, backgroundColor: 'rgba(0,0,0,0.6)' }
+              ]}
+              onPress={() => { playSound('menu'); handleReplay(); }}
+            >
+              <Text style={[styles.menuBtnText, Platform.OS === 'web' && { fontSize: 14 }]}>{t?.replay}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.menuBtn,
+                Platform.OS === 'web' && { width: 140, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'rgba(255,255,255,0.05)', marginTop: 5 }
+              ]}
+              onPress={() => { playSound('menu'); handleMainMenu(); }}
+            >
+              <Text style={[styles.menuBtnText, Platform.OS === 'web' && { fontSize: 12 }]}>{t?.menu}</Text>
+            </TouchableOpacity>
+
+            {Platform.OS !== 'ios' && Platform.OS !== 'web' && (
+              <TouchableOpacity style={[styles.menuBtn, styles.menuBtnExit]} onPress={() => { playSound('menu'); handleExit(); }}>
+                <Text style={[styles.menuBtnText, styles.menuBtnTextExit]}>{t?.exit}</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={{ flexDirection: 'row', marginTop: 20, gap: 10 }}>
+              <ControlButton icon="↻" onPressIn={() => startGame(lang!)} onPressOut={() => { }} style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}} />
+              <ControlButton icon="⬇️" onPressIn={hasPlayed ? downloadGameHistory : () => { }} onPressOut={() => { }} style={[Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10, marginLeft: 0 } : { marginLeft: 10 }, !hasPlayed && { opacity: 0.3 }]} />
+              <ControlButton icon="⌂" onPressIn={() => { setLang(null); setShowPauseMenu(false); }} onPressOut={() => { }} style={Platform.OS === 'web' ? { width: 40, height: 40, borderRadius: 10 } : {}} />
+            </View>
+
             {hasPlayed && (
-              <View style={{ alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ color: COLORS.neonBlue, fontSize: 16, marginBottom: 5 }}>▲</Text>
-                <Text style={{ color: '#ccc', fontSize: 12, textAlign: 'center', maxWidth: 280, fontWeight: 'bold', marginBottom: 5 }}>
-                  {t?.aiDisclaimer}
-                </Text>
-                <Text style={{ color: '#aaa', fontSize: 11, textAlign: 'center', maxWidth: 280, fontStyle: 'italic' }}>
-                  {t?.aiInstruction}
-                </Text>
+              <View style={{ alignItems: 'center', marginTop: 15, paddingHorizontal: 10 }}>
+                <Text style={{ color: COLORS.neonCyan, fontSize: 16, fontWeight: '900', marginBottom: 8, textAlign: 'center', letterSpacing: 0.5 }}>{t?.aiDisclaimer}</Text>
+                {renderInstruction(t?.aiInstruction)}
               </View>
             )}
           </View>
         </View>
-      </Modal>
-    </SafeAreaView>
+      )}
+    </SafeAreaView >
   );
 }
 
@@ -1563,7 +1620,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2C2C2E',
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
     ...Platform.select({
-      web: { boxShadow: '0px 0px 10px 0px ' + COLORS.neonBlue },
       web: { boxShadow: `0px 0px 10px ${COLORS.neonBlue}` },
       default: { shadowColor: COLORS.neonBlue, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 10, elevation: 10 }
     })

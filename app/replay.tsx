@@ -1,7 +1,11 @@
+
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Stack, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { TEXTS } from '../constants/Texts';
 import { Block, COLORS, GAP, GRID_COLS, GRID_ROWS, Wall } from './index';
 
 // Interfaces (Redefined locally as they are not exported from index.tsx)
@@ -17,69 +21,113 @@ interface GameHistoryStep {
 
 export default function Replay() {
     const router = useRouter();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isPortrait = windowHeight > windowWidth;
+    const isMobile = windowWidth < 768;
+
+    const params = useLocalSearchParams();
+    const lang = (params.lang as string) || 'EN';
+    const t = TEXTS[lang as keyof typeof TEXTS] || TEXTS['EN'];
+
     const [history, setHistory] = useState<GameHistoryStep[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(100); // ms per step (Faster default)
     const [cellSize, setCellSize] = useState(0);
-    const [walls, setWalls] = useState<WallData[]>([]); // Walls are static usually, but we can extract from grid if needed. 
-    // Actually walls are not in history explicitly as objects, only in grid.
-    // But for replay we might need them. 
-    // Wait, captureGridState takes currentWalls. But doesn't save them explicitly in step.
-    // It saves them in 'grid'.
-    // If we want to render Wall components, we need to extract them from grid.
+    const [walls, setWalls] = useState<WallData[]>([]);
 
     const timerRef = useRef<any>(null);
 
     // Calculate Cell Size
     const onLayout = (e: any) => {
         const { width, height } = e.nativeEvent.layout;
-        const size = Math.floor((Math.min(width, height) - (GAP * (GRID_COLS - 1))) / GRID_COLS);
-        setCellSize(size);
+        // Safety check for zero dimensions
+        if (width === 0 || height === 0) return;
+
+        const availableW = width - 20;
+        const availableH = height - 20;
+
+        const sizeW = Math.floor((availableW - (GAP * (GRID_COLS - 1))) / GRID_COLS);
+        const sizeH = Math.floor((availableH - (GAP * (GRID_COLS - 1))) / GRID_COLS);
+
+        setCellSize(Math.min(sizeW, sizeH));
     };
 
     // File Upload Handler
-    const handleFileUpload = (event: any) => {
-        const file = event.target.files[0];
-        if (!file) return;
+    const handleFileUpload = async (event?: any) => {
+        if (Platform.OS === 'web') {
+            // WEB LOGIC
+            const file = event?.target?.files?.[0];
+            if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target?.result as string);
+                    processGameData(json);
+                } catch (err) {
+                    alert('Error parsing JSON');
+                }
+            };
+            reader.readAsText(file);
+        } else {
+            // NATIVE LOGIC (Android/iOS)
             try {
-                const json = JSON.parse(e.target?.result as string);
-                if (Array.isArray(json)) {
-                    setHistory(json);
-                    setCurrentIndex(0);
-                    setIsPlaying(false);
+                const result = await DocumentPicker.getDocumentAsync({
+                    type: 'application/json',
+                    copyToCacheDirectory: true
+                });
 
-                    // Extract walls from the first frame (assuming walls don't move)
-                    // Grid: 1 = Wall
-                    const firstGrid = json[0].grid;
-                    const extractedWalls: WallData[] = [];
-                    for (let y = 0; y < GRID_ROWS; y++) {
-                        for (let x = 0; x < GRID_COLS; x++) {
-                            if (firstGrid[y][x] === 1) {
-                                extractedWalls.push({ x, y, type: (x + y) % 7 }); // Type is guessed
-                            }
+                if (result.canceled) return;
+
+                const fileUri = result.assets[0].uri;
+                const fileContent = await FileSystem.readAsStringAsync(fileUri);
+                const json = JSON.parse(fileContent);
+                processGameData(json);
+            } catch (err) {
+                alert('Error loading file: ' + err);
+            }
+        }
+    };
+
+    const processGameData = (json: any) => {
+        if (Array.isArray(json)) {
+            setHistory(json);
+            setCurrentIndex(0);
+            setIsPlaying(false);
+
+            // Extract walls from the first frame
+            const firstGrid = json[0].grid;
+            const extractedWalls: WallData[] = [];
+            for (let y = 0; y < GRID_ROWS; y++) {
+                for (let x = 0; x < GRID_COLS; x++) {
+                    const cell = firstGrid[y][x];
+                    if (typeof cell === 'number') {
+                        if (cell >= 10) {
+                            extractedWalls.push({ x, y, type: cell - 10 });
+                        } else if (cell === 1) {
+                            extractedWalls.push({ x, y, type: (x + y) % 7 }); // Fallback
                         }
                     }
-                    setWalls(extractedWalls);
-                } else {
-                    alert('Invalid JSON format');
                 }
-            } catch (err) {
-                alert('Error parsing JSON');
             }
-        };
-        reader.readAsText(file);
+            setWalls(extractedWalls);
+        } else {
+            alert('Invalid JSON format');
+        }
     };
 
     // Playback Loop
     useEffect(() => {
         if (isPlaying && currentIndex < history.length - 1) {
+            const currentStep = history[currentIndex];
+            // Pause for 1 second if aligned
+            const isAligned = currentStep.move === 'ALIGNED' || currentStep.label === 'aligned-output';
+            const delay = isAligned ? 1000 : speed;
+
             timerRef.current = setTimeout(() => {
                 setCurrentIndex(prev => prev + 1);
-            }, speed);
+            }, delay);
         } else if (currentIndex >= history.length - 1) {
             setIsPlaying(false);
         }
@@ -90,19 +138,31 @@ export default function Replay() {
 
     const currentStep = history[currentIndex];
     const gridContainerSize = cellSize > 0 ? (cellSize * GRID_COLS) + (GAP * (GRID_COLS - 1)) : 0;
+    const isFinished = history.length > 0 && currentIndex === history.length - 1;
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ headerShown: false }} />
             <LinearGradient
                 colors={[COLORS.bg, '#000']}
                 style={styles.background}
             />
 
-            {/* Header Removed as requested */}
-            {/* Header Removed as requested */}
-            <View style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}>
-                <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+            {/* MOBILE LANDSCAPE WARNING OVERLAY */}
+            {Platform.OS === 'web' && isMobile && !isPortrait && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: COLORS.bg, zIndex: 9999, justifyContent: 'center', alignItems: 'center' }}>
+                    <View style={{ width: 60, height: 100, borderWidth: 4, borderColor: COLORS.neonBlue, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20, transform: [{ rotate: '90deg' }] }}>
+                        <Text style={{ fontSize: 40 }}>📱</Text>
+                    </View>
+                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', textAlign: 'center', maxWidth: 300 }}>
+                        {t.rotateDevice}
+                    </Text>
+                </View>
+            )}
+
+            {/* Header / Back Button (Relative Flow) */}
+            <View style={{ padding: 20, paddingBottom: 10, zIndex: 10 }}>
+                <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8} style={{ alignSelf: 'flex-start' }}>
                     <LinearGradient
                         colors={[COLORS.grad1, COLORS.grad2]}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -118,62 +178,73 @@ export default function Replay() {
                         }}
                     >
                         <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', marginRight: 8 }}>←</Text>
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 }}>BACK</Text>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 }}>{t.back}</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
 
             {/* Content */}
-            <View style={styles.content}>
+            <View style={[styles.content, { flexDirection: isPortrait ? 'column' : 'row' }]}>
                 {/* Controls / Upload */}
-                <View style={styles.sidebar}>
-                    <View style={styles.panel}>
-                        <Text style={styles.label}>Load Game Data</Text>
-                        {Platform.OS === 'web' && (
-                            <input
-                                type="file"
-                                accept=".json"
-                                onChange={handleFileUpload}
-                                style={{ color: '#fff', marginBottom: 20 }}
-                            />
-                        )}
+                <View style={[styles.sidebar, { width: isPortrait ? '100%' : 300, maxHeight: isPortrait ? '40%' : '100%' }]}>
+                    <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+                        <View style={styles.panel}>
+                            <Text style={styles.label}>{t.loadGameData}</Text>
+                            {Platform.OS === 'web' ? (
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={handleFileUpload}
+                                    style={{ color: '#fff', marginBottom: 20 }}
+                                />
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.btn, { marginBottom: 20, backgroundColor: COLORS.neonBlue }]}
+                                    onPress={handleFileUpload}
+                                >
+                                    <Text style={[styles.btnText, { color: '#000', fontSize: 14 }]}>{t.uploadGameData}</Text>
+                                </TouchableOpacity>
+                            )}
 
-                        <Text style={styles.info}>
-                            Step: {currentIndex + 1} / {history.length}
-                        </Text>
-                        <Text style={styles.info}>
-                            Move: {currentStep?.move || '-'}
-                        </Text>
-                        {currentStep?.label && (
-                            <Text style={{ color: COLORS.neonBlue, fontWeight: 'bold', marginTop: 5 }}>
-                                LABEL: {currentStep.label}
+                            <Text style={styles.info}>
+                                {t.step}: {currentIndex + 1} / {history.length}
                             </Text>
-                        )}
+                            <Text style={styles.info}>
+                                {t.move}: <Text style={currentStep?.move === 'ALIGNED' ? { color: COLORS.neonCyan, fontWeight: 'bold' } : {}}>{currentStep?.move || '-'}</Text>
+                            </Text>
 
-                        <View style={styles.controls}>
-                            <TouchableOpacity
-                                style={[styles.btn, history.length === 0 && styles.disabled]}
-                                onPress={() => setIsPlaying(!isPlaying)}
-                                disabled={history.length === 0}
-                            >
-                                <Text style={styles.btnText}>{isPlaying ? 'PAUSE' : 'PLAY'}</Text>
-                            </TouchableOpacity>
+                            <View style={styles.controls}>
+                                <TouchableOpacity
+                                    style={[styles.btn, history.length === 0 && styles.disabled]}
+                                    onPress={() => {
+                                        if (isFinished) {
+                                            setCurrentIndex(0);
+                                            setIsPlaying(true);
+                                        } else {
+                                            setIsPlaying(!isPlaying);
+                                        }
+                                    }}
+                                    disabled={history.length === 0}
+                                >
+                                    <Text style={styles.btnText}>{isFinished ? t.replay : (isPlaying ? t.pause : t.play)}</Text>
+                                </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={[styles.btn, history.length === 0 && styles.disabled]}
-                                onPress={() => { setCurrentIndex(0); setIsPlaying(false); }}
-                                disabled={history.length === 0}
-                            >
-                                <Text style={styles.btnText}>RESET</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.btn, (history.length === 0 || isFinished) && styles.disabled]}
+                                    onPress={() => { setCurrentIndex(0); setIsPlaying(false); }}
+                                    disabled={history.length === 0 || isFinished}
+                                >
+                                    <Text style={styles.btnText}>{t.reset}</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.label}>{t.speed}: {speed}ms</Text>
+                            <View style={{ flexDirection: 'row', gap: 10 }}>
+                                <TouchableOpacity onPress={() => setSpeed(Math.max(100, speed - 100))} style={styles.speedBtn}><Text style={styles.btnText}>+</Text></TouchableOpacity>
+                                <TouchableOpacity onPress={() => setSpeed(speed + 100)} style={styles.speedBtn}><Text style={styles.btnText}>-</Text></TouchableOpacity>
+                            </View>
                         </View>
-
-                        <Text style={styles.label}>Speed: {speed}ms</Text>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TouchableOpacity onPress={() => setSpeed(Math.max(100, speed - 100))} style={styles.speedBtn}><Text style={styles.btnText}>+</Text></TouchableOpacity>
-                            <TouchableOpacity onPress={() => setSpeed(speed + 100)} style={styles.speedBtn}><Text style={styles.btnText}>-</Text></TouchableOpacity>
-                        </View>
-                    </View>
+                    </ScrollView>
                 </View>
 
                 {/* Grid */}
@@ -260,7 +331,7 @@ export default function Replay() {
                     )}
                 </View>
             </View>
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -268,6 +339,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
+        flexDirection: 'column', // Explicit column layout
     },
     background: {
         position: 'absolute',
@@ -292,7 +364,7 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         padding: 20,
-        gap: 20
+        gap: 20,
     },
     sidebar: {
         width: 300,
@@ -300,7 +372,7 @@ const styles = StyleSheet.create({
     },
     panel: {
         backgroundColor: 'rgba(30,30,40,0.8)',
-        padding: 20,
+        padding: 15, // Reduced from 20
         borderRadius: 16,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)'
@@ -313,32 +385,33 @@ const styles = StyleSheet.create({
     label: {
         color: COLORS.neonBlue,
         fontWeight: 'bold',
-        marginBottom: 10,
-        fontSize: 16
+        marginBottom: 8,
+        fontSize: 14 // Reduced from 16
     },
     info: {
         color: '#ccc',
-        marginBottom: 5,
-        fontFamily: 'monospace'
+        marginBottom: 4,
+        fontFamily: 'monospace',
+        fontSize: 12 // Added explicit smaller size
     },
     controls: {
         flexDirection: 'row',
         gap: 10,
-        marginTop: 20,
-        marginBottom: 20
+        marginTop: 15,
+        marginBottom: 15
     },
     btn: {
         flex: 1,
         backgroundColor: COLORS.grad2,
-        padding: 12,
+        padding: 10, // Reduced from 12
         borderRadius: 8,
         alignItems: 'center'
     },
     speedBtn: {
         backgroundColor: 'rgba(255,255,255,0.1)',
-        padding: 10,
+        padding: 8, // Reduced from 10
         borderRadius: 8,
-        width: 40,
+        width: 36,
         alignItems: 'center'
     },
     disabled: {
@@ -346,6 +419,7 @@ const styles = StyleSheet.create({
     },
     btnText: {
         color: '#fff',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        fontSize: 12 // Added explicit smaller size
     }
 });

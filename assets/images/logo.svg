@@ -1,0 +1,72 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Arka Plan: Koyu Arcade Atmosferi -->
+  <rect width="512" height="512" fill="#0f0f12" rx="40" />
+  
+  <!-- Hafif Grid Dokusu (Arka Plan) -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  </pattern>
+  <rect width="512" height="512" fill="url(#grid)" rx="40" />
+
+  <!-- Glow Efektleri (Neon Parlama) -->
+  <defs>
+    <filter id="neon-glow-blue" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="neon-glow-pink" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+     <filter id="neon-glow-orange" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Ana Grafik: Tetris Blokları Şeklinde "A" Harfi İlüzyonu -->
+  <g transform="translate(106, 120) scale(1.2)">
+      <!-- Sol Blok (Pembe/Taralı) -->
+      <rect x="0" y="40" width="40" height="40" fill="none" stroke="#ff2a6d" stroke-width="3" filter="url(#neon-glow-pink)"/>
+      <path d="M 5 75 L 35 45 M 15 75 L 35 55 M 0 60 L 20 40" stroke="#ff2a6d" stroke-width="2" opacity="0.6" />
+      
+      <rect x="44" y="40" width="40" height="40" fill="none" stroke="#ff2a6d" stroke-width="3" filter="url(#neon-glow-pink)"/>
+      <path d="M 49 75 L 79 45 M 59 75 L 79 55 M 44 60 L 64 40" stroke="#ff2a6d" stroke-width="2" opacity="0.6" />
+
+      <!-- Orta Dikey Blok (Parlak Mavi) -->
+      <rect x="88" y="0" width="44" height="120" fill="#0f0f12" stroke="#00fff2" stroke-width="4" rx="4" filter="url(#neon-glow-blue)" />
+      <text x="110" y="35" font-family="Arial, sans-serif" font-weight="900" font-size="32" fill="#00fff2" text-anchor="middle">A</text>
+      <text x="110" y="70" font-family="Arial, sans-serif" font-weight="900" font-size="32" fill="#00fff2" text-anchor="middle">L</text>
+      <text x="110" y="105" font-family="Arial, sans-serif" font-weight="900" font-size="32" fill="#00fff2" text-anchor="middle">L</text>
+
+      <!-- Sağ Yan Yazı: "INE" (Parlak Turuncu) -->
+      <g transform="translate(140, 40)">
+          <rect x="0" y="0" width="40" height="40" rx="4" fill="none" stroke="#FF5E00" stroke-width="3" filter="url(#neon-glow-orange)" />
+          <text x="20" y="30" font-family="Arial, sans-serif" font-weight="bold" font-size="28" fill="#FF5E00" text-anchor="middle">I</text>
+
+          <rect x="44" y="0" width="40" height="40" rx="4" fill="none" stroke="#FF5E00" stroke-width="3" filter="url(#neon-glow-orange)" />
+          <text x="64" y="30" font-family="Arial, sans-serif" font-weight="bold" font-size="28" fill="#FF5E00" text-anchor="middle">N</text>
+
+          <rect x="88" y="0" width="40" height="40" rx="4" fill="none" stroke="#FF5E00" stroke-width="3" filter="url(#neon-glow-orange)" />
+          <text x="108" y="30" font-family="Arial, sans-serif" font-weight="bold" font-size="28" fill="#FF5E00" text-anchor="middle">E</text>
+      </g>
+      
+      <!-- Alt Dekoratif Çizgi (Kaldırıldı) -->
+  </g>
+  
+  <!-- Alt Slogan / Pause İşareti (Logonun Altında) -->
+   <g transform="translate(236, 340)">
+        <rect x="0" y="0" width="10" height="40" fill="#666" rx="2" />
+        <rect x="20" y="0" width="10" height="40" fill="#666" rx="2" />
+   </g>
+
+</svg>
