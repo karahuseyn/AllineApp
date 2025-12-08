@@ -1,4 +1,4 @@
-# Privacy Policy for Alline
+# Privacy Policy for Allined
 
 **Last updated:** December 03, 2025
 
